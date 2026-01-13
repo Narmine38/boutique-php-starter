@@ -3,7 +3,8 @@
     "description": "Starter pour formation PHP 14 jours",
     "type": "project",
     "require": {
-        "php": ">=8.2"
+        "php": ">=8.2",
+        "ext-pdo": "*"
     },
     "require-dev": {
         "phpstan/phpstan": "^1.10",
