@@ -8,12 +8,55 @@ if (!isset($products)) {
     $products = [];
 }
 
-// Stats
+// Récupération des filtres
+$search = $_GET["q"] ?? "";
+$selectedCategories = $_GET["categories"] ?? [];
+$priceMin = (float)($_GET["price_min"] ?? 0);
+$priceMax = (float)($_GET["price_max"] ?? 999999);
+$inStockOnly = isset($_GET["in_stock"]);
+$sort = $_GET["sort"] ?? "name_asc";
+
+// Filtrage
+$filteredProducts = array_filter($products, function($p) use ($search, $selectedCategories, $priceMin, $priceMax, $inStockOnly) {
+    if ($search !== "" && stripos($p["name"], $search) === false) return false;
+    if (!empty($selectedCategories) && !in_array($p["category"], $selectedCategories)) return false;
+    
+    $currentPrice = isset($p["discount"]) && $p["discount"] > 0 
+        ? $p["price"] * (1 - $p["discount"] / 100) 
+        : $p["price"];
+        
+    if ($currentPrice < $priceMin || $currentPrice > $priceMax) return false;
+    if ($inStockOnly && $p["stock"] <= 0) return false;
+    return true;
+});
+
+// Tri
+usort($filteredProducts, function($a, $b) use ($sort) {
+    switch ($sort) {
+        case "price_asc": return $a["price"] <=> $b["price"];
+        case "price_desc": return $b["price"] <=> $a["price"];
+        case "name_desc": return strcasecmp($b["name"], $a["name"]);
+        case "name_asc":
+        default: return strcasecmp($a["name"], $b["name"]);
+    }
+});
+
+// Liste des catégories pour le filtre
+$allCategories = [];
+foreach ($products as $p) {
+    $cat = $p['category'];
+    if (!isset($allCategories[$cat])) {
+        $allCategories[$cat] = 0;
+    }
+    $allCategories[$cat]++;
+}
+
+// Stats sur les produits filtrés
 $inStockCount = 0;
 $onSaleCount = 0;
 $outOfStockCount = 0;
 
-foreach ($products as $product) {
+foreach ($filteredProducts as $product) {
     if ($product["stock"] > 0) {
         $inStockCount++;
     } else {
@@ -66,27 +109,21 @@ foreach ($products as $product) {
         <div class="catalog-layout">
 
             <aside class="catalog-sidebar">
-                <form>
+                <form action="catalogue.php" method="GET">
                     <div class="catalog-sidebar__section">
                         <h3 class="catalog-sidebar__title">Recherche</h3>
-                        <input type="text" name="q" class="form-input" placeholder="Rechercher...">
+                        <input type="text" name="q" class="form-input" placeholder="Rechercher..." value="<?= htmlspecialchars($search) ?>">
                     </div>
 
                     <div class="catalog-sidebar__section">
                         <h3 class="catalog-sidebar__title">Catégories</h3>
                         <div class="catalog-sidebar__categories">
-                            <label class="form-checkbox">
-                                <input type="checkbox" name="categories[]" value="vetements">
-                                <span>Vêtements (4)</span>
-                            </label>
-                            <label class="form-checkbox">
-                                <input type="checkbox" name="categories[]" value="chaussures">
-                                <span>Chaussures (1)</span>
-                            </label>
-                            <label class="form-checkbox">
-                                <input type="checkbox" name="categories[]" value="accessoires">
-                                <span>Accessoires (3)</span>
-                            </label>
+                            <?php foreach ($allCategories as $catName => $count): ?>
+                                <label class="form-checkbox">
+                                    <input type="checkbox" name="categories[]" value="<?= $catName ?>" <?= in_array($catName, $selectedCategories) ? 'checked' : '' ?>>
+                                    <span><?= ucfirst($catName) ?> (<?= $count ?>)</span>
+                                </label>
+                            <?php endforeach; ?>
                         </div>
                     </div>
 
@@ -95,11 +132,11 @@ foreach ($products as $product) {
                         <div class="catalog-sidebar__price-inputs">
                             <div class="form-group">
                                 <label class="form-label">Min</label>
-                                <input type="number" name="price_min" class="form-input" placeholder="0 €" min="0">
+                                <input type="number" name="price_min" class="form-input" placeholder="0 €" min="0" value="<?= $priceMin > 0 ? $priceMin : '' ?>">
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Max</label>
-                                <input type="number" name="price_max" class="form-input" placeholder="100 €" min="0">
+                                <input type="number" name="price_max" class="form-input" placeholder="100 €" min="0" value="<?= $priceMax < 999999 ? $priceMax : '' ?>">
                             </div>
                         </div>
                     </div>
@@ -107,10 +144,12 @@ foreach ($products as $product) {
                     <div class="catalog-sidebar__section">
                         <h3 class="catalog-sidebar__title">Disponibilité</h3>
                         <label class="form-checkbox">
-                            <input type="checkbox" name="in_stock" value="1">
+                            <input type="checkbox" name="in_stock" value="1" <?= $inStockOnly ? 'checked' : '' ?>>
                             <span>En stock uniquement</span>
                         </label>
                     </div>
+
+                    <input type="hidden" name="sort" value="<?= htmlspecialchars($sort) ?>">
 
                     <button type="submit" class="btn btn--primary btn--block">Appliquer</button>
                     <a href="catalogue.php" class="btn btn--secondary btn--block mt-sm">Réinitialiser</a>
@@ -119,20 +158,31 @@ foreach ($products as $product) {
 
             <div class="catalog-main">
                 <div class="catalog-header">
-                    <p><strong><?= count($products) ?></strong> produits trouvés</p>
+                    <p><strong><?= count($filteredProducts) ?></strong> produits trouvés</p>
                     <div class="catalog-header__sort">
                         <label>Trier :</label>
-                        <select class="form-select" style="width:auto">
-                            <option>Nom A-Z</option>
-                            <option>Nom Z-A</option>
-                            <option>Prix ↑</option>
-                            <option>Prix ↓</option>
-                        </select>
+                        <form action="catalogue.php" method="GET" style="display: inline;">
+                            <?php foreach ($_GET as $key => $value): if ($key !== 'sort'): ?>
+                                <?php if (is_array($value)): ?>
+                                    <?php foreach ($value as $v): ?>
+                                        <input type="hidden" name="<?= htmlspecialchars($key) ?>[]" value="<?= htmlspecialchars($v) ?>">
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <input type="hidden" name="<?= htmlspecialchars($key) ?>" value="<?= htmlspecialchars($value) ?>">
+                                <?php endif; ?>
+                            <?php endif; endforeach; ?>
+                            <select name="sort" class="form-select" style="width:auto" onchange="this.form.submit()">
+                                <option value="name_asc" <?= $sort === 'name_asc' ? 'selected' : '' ?>>Nom A-Z</option>
+                                <option value="name_desc" <?= $sort === 'name_desc' ? 'selected' : '' ?>>Nom Z-A</option>
+                                <option value="price_asc" <?= $sort === 'price_asc' ? 'selected' : '' ?>>Prix ↑</option>
+                                <option value="price_desc" <?= $sort === 'price_desc' ? 'selected' : '' ?>>Prix ↓</option>
+                            </select>
+                        </form>
                     </div>
                 </div>
 
                 <div class="products-grid">
-                    <?php foreach ($products as $id => $product): ?>
+                    <?php foreach ($filteredProducts as $id => $product): ?>
                         <article class="product-card">
                             <div class="product-card__image-wrapper">
                                 <img src="<?= $product["image"] ?>" alt="<?= $product["name"] ?>" class="product-card__image">
