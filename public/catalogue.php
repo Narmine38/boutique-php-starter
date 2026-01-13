@@ -6,6 +6,22 @@ require_once __DIR__ . '/../app/data.php';
 if (!isset($products)) {
     $products = [];
 }
+
+// Stats
+$inStockCount = 0;
+$onSaleCount = 0;
+$outOfStockCount = 0;
+
+foreach ($products as $product) {
+    if ($product["stock"] > 0) {
+        $inStockCount++;
+    } else {
+        $outOfStockCount++;
+    }
+    if (isset($product["discount"]) && $product["discount"] > 0) {
+        $onSaleCount++;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -38,6 +54,12 @@ if (!isset($products)) {
         <div class="page-header">
             <h1 class="page-title">Notre Catalogue</h1>
             <p class="page-subtitle">Découvrez tous nos produits</p>
+        </div>
+
+        <div class="stats-bar" style="display: flex; gap: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee;">
+            <div><strong>✅ En stock :</strong> <?= $inStockCount ?></div>
+            <div><strong>🔥 En promo :</strong> <?= $onSaleCount ?></div>
+            <div><strong>❌ Ruptures :</strong> <?= $outOfStockCount ?></div>
         </div>
 
         <div class="catalog-layout">
@@ -113,16 +135,32 @@ if (!isset($products)) {
                         <article class="product-card">
                             <div class="product-card__image-wrapper">
                                 <img src="<?= $product["image"] ?>" alt="<?= $product["name"] ?>" class="product-card__image">
+                                <div class="product-badges" style="position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 5px;">
+                                    <?php if (isset($product["new"]) && $product["new"]): ?>
+                                        <span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">NOUVEAU</span>
+                                    <?php endif; ?>
+                                    <?php if (isset($product["discount"]) && $product["discount"] > 0): ?>
+                                        <span style="background: #e67e22; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">PROMO -<?= $product["discount"] ?>%</span>
+                                    <?php endif; ?>
+                                    <?php if ($product["stock"] < 5 && $product["stock"] > 0): ?>
+                                        <span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">DERNIERS</span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             <div class="product-card__content">
                                 <a href="produit.php?id=<?= $id ?>" class="product-card__title"><?= $product["name"] ?></a>
                                 <div class="product-card__price">
-                                    <span class="product-card__price-current"><?= number_format($product["price"], 2, ',', ' ') ?> €</span>
+                                    <?php if (isset($product["discount"]) && $product["discount"] > 0): ?>
+                                        <span class="product-card__price-old" style="text-decoration: line-through; color: #999; font-size: 0.9em; margin-right: 5px;"><?= number_format($product["price"], 2, ',', ' ') ?> €</span>
+                                        <span class="product-card__price-current" style="color: #e67e22; font-weight: bold;"><?= number_format($product["price"] * (1 - $product["discount"] / 100), 2, ',', ' ') ?> €</span>
+                                    <?php else: ?>
+                                        <span class="product-card__price-current"><?= number_format($product["price"], 2, ',', ' ') ?> €</span>
+                                    <?php endif; ?>
                                 </div>
                                 <?php if ($product['stock'] > 0): ?>
                                     <p class="product-card__stock product-card__stock--available">✓ En stock (<?= $product["stock"] ?>)</p>
                                 <?php else: ?>
-                                    <p class="product-card__stock product-card__stock--out" style="color: red;">✗ Rupture de stock</p>
+                                    <p class="product-card__stock product-card__stock--out" style="color: red; font-weight: bold;">❌ RUPTURE</p>
                                 <?php endif; ?>
                                 <div class="product-card__actions">
                                     <form action="panier.html" method="POST">
