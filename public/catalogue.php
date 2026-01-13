@@ -1,6 +1,7 @@
 <?php
 // starter-project/public/catalogue.php
 require_once __DIR__ . '/../app/data.php';
+require_once __DIR__ . '/../app/helpers.php';
 
 // Initialisation de $products si non défini par data.php (sécurité)
 if (!isset($products)) {
@@ -136,12 +137,7 @@ foreach ($products as $product) {
                             <div class="product-card__image-wrapper">
                                 <img src="<?= $product["image"] ?>" alt="<?= $product["name"] ?>" class="product-card__image">
                                 <div class="product-badges" style="position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 5px;">
-                                    <?php if (isset($product["new"]) && $product["new"]): ?>
-                                        <span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">NOUVEAU</span>
-                                    <?php endif; ?>
-                                    <?php if (isset($product["discount"]) && $product["discount"] > 0): ?>
-                                        <span style="background: #e67e22; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">PROMO -<?= $product["discount"] ?>%</span>
-                                    <?php endif; ?>
+                                    <?= displayBadges($product) ?>
                                     <?php if ($product["stock"] < 5 && $product["stock"] > 0): ?>
                                         <span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">DERNIERS</span>
                                     <?php endif; ?>
@@ -151,17 +147,13 @@ foreach ($products as $product) {
                                 <a href="produit.php?id=<?= $id ?>" class="product-card__title"><?= $product["name"] ?></a>
                                 <div class="product-card__price">
                                     <?php if (isset($product["discount"]) && $product["discount"] > 0): ?>
-                                        <span class="product-card__price-old" style="text-decoration: line-through; color: #999; font-size: 0.9em; margin-right: 5px;"><?= number_format($product["price"], 2, ',', ' ') ?> €</span>
-                                        <span class="product-card__price-current" style="color: #e67e22; font-weight: bold;"><?= number_format($product["price"] * (1 - $product["discount"] / 100), 2, ',', ' ') ?> €</span>
+                                        <span class="product-card__price-old" style="text-decoration: line-through; color: #999; font-size: 0.9em; margin-right: 5px;"><?= formatPrice($product["price"]) ?></span>
+                                        <span class="product-card__price-current" style="color: #e67e22; font-weight: bold;"><?= formatPrice(calculateDiscount($product["price"], $product["discount"])) ?></span>
                                     <?php else: ?>
-                                        <span class="product-card__price-current"><?= number_format($product["price"], 2, ',', ' ') ?> €</span>
+                                        <span class="product-card__price-current"><?= formatPrice($product["price"]) ?></span>
                                     <?php endif; ?>
                                 </div>
-                                <?php if ($product['stock'] > 0): ?>
-                                    <p class="product-card__stock product-card__stock--available">✓ En stock (<?= $product["stock"] ?>)</p>
-                                <?php else: ?>
-                                    <p class="product-card__stock product-card__stock--out" style="color: red; font-weight: bold;">❌ RUPTURE</p>
-                                <?php endif; ?>
+                                <?= displayStockStatus($product["stock"]) ?>
                                 <div class="product-card__actions">
                                     <form action="panier.html" method="POST">
                                         <input type="hidden" name="product_id" value="<?= $id ?>">
