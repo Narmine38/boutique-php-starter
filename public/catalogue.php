@@ -1,12 +1,20 @@
 <?php
+session_start();
 // starter-project/public/catalogue.php
-require_once __DIR__ . '/../app/data.php';
+$pdo = require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../app/helpers.php';
 
-// Initialisation de $products si non défini par data.php (sécurité)
-if (!isset($products)) {
-    $products = [];
+// Récupération des produits depuis la BDD
+$stmt = $pdo->query("SELECT p.*, c.name as category FROM products p LEFT JOIN categories c ON p.category_id = c.id");
+$products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Conversion des types pour correspondre à l'ancien format si besoin
+foreach ($products as &$p) {
+    $p['price'] = (float)$p['price'];
+    $p['stock'] = (int)$p['stock'];
+    $p['discount'] = (int)$p['discount'];
 }
+unset($p);
 
 // Récupération des filtres
 $search = $_GET["q"] ?? "";
@@ -66,6 +74,12 @@ foreach ($filteredProducts as $product) {
         $onSaleCount++;
     }
 }
+$cartCount = 0;
+if (isset($_SESSION["cart"])) {
+    foreach ($_SESSION["cart"] as $item) {
+        $cartCount += $item["quantity"];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -86,7 +100,7 @@ foreach ($filteredProducts as $product) {
             <a href="contact.html" class="header__nav-link">Contact</a>
         </nav>
         <div class="header__actions">
-            <a href="panier.html" class="header__cart">🛒<span class="header__cart-badge">3</span></a>
+            <a href="panier.php" class="header__cart">🛒<span class="header__cart-badge"><?= $cartCount ?></span></a>
             <a href="connexion.html" class="btn btn--primary btn--sm">Connexion</a>
         </div>
         <button class="header__menu-toggle">☰</button>
