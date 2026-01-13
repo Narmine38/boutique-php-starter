@@ -42,5 +42,22 @@ $products = [
         "stock" => 25,
         "image" => "https://picsum.photos/id/6/300/200",
         "description" => "Une montre connectée aux multiples fonctionnalités."
+    ],
+    [
+        "name" => "Casque Audio",
+        "price" => 149.99,
+        "stock" => 15,
+        "image" => "https://picsum.photos/id/7/300/200",
+        "description" => "Réduction de bruit active et son haute fidélité."
+    ],
+    [
+        "name" => "Appareil Photo",
+        "price" => 450.00,
+        "stock" => 0,
+        "image" => "https://picsum.photos/id/8/300/200",
+        "description" => "Capturez vos meilleurs moments avec précision."
     ]
 ];
+
+// On s'assure que la variable est globale
+global $products;
